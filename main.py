@@ -1,5 +1,7 @@
 import os
 import logging
+import threading
+from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
@@ -10,11 +12,25 @@ from telegram.ext import (
     filters,
 )
 
-# جلب المتغيرات من بيئة العمل السحابية (Environment Variables)
+# ----------------------------------------------------
+# 0. إعداد خادم Flask لإبقاء الخدمة نشطة على Render
+# ----------------------------------------------------
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Bot is running 24/7!"
+
+def run_flask():
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
+
+# ----------------------------------------------------
+# 1. إعداد المتغيرات وقواعد البيانات
+# ----------------------------------------------------
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "894155326"))
 
-# قواعد بيانات في الذاكرة
 users_db = set()
 created_bots = {}
 
@@ -24,7 +40,7 @@ logging.basicConfig(
 )
 
 # ----------------------------------------------------
-# 1. لوحة تحكم المطوّر الرئيسي (ADMIN_ID)
+# 2. لوحة تحكم المطوّر الرئيسي (ADMIN_ID)
 # ----------------------------------------------------
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -40,7 +56,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("👑 **أهلاً بك يا مالك البوت في لوحة التحكم:**", reply_markup=reply_markup, parse_mode="Markdown")
 
 # ----------------------------------------------------
-# 2. رسالة الترحيب وصانع البوتات الرئيسي
+# 3. صانع البوتات الرئيسي
 # ----------------------------------------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -60,7 +76,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [InlineKeyboardButton("1️⃣ صنع بوت مراسلة عادي (بدون مجهول)", callback_data="create_normal")],
-        [InlineKeyboardButton("2️⃣ صنع بوت مراسلة عادي + ميزة المجهول 🕵️️‍♂️", callback_data="create_anon")],
+        [InlineKeyboardButton("2️⃣ صنع بوت مراسلة عادي + ميزة المجهول 🕵️‍♂️", callback_data="create_anon")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(welcome_text, reply_markup=reply_markup, parse_mode="Markdown")
@@ -120,7 +136,6 @@ async def handle_message_master(update: Update, context: ContextTypes.DEFAULT_TY
         await update.message.reply_text(f"✅ تم إرسال الإذاعة إلى {count} مستخدم.")
         return
 
-    # استقبال التوكن وتشغيل البوت الفرعي
     if ":" in text and len(text) > 20:
         bot_type = context.user_data.get('bot_type', 'create_normal')
         allow_anon = (bot_type == "create_anon")
@@ -150,7 +165,7 @@ async def handle_message_master(update: Update, context: ContextTypes.DEFAULT_TY
             await update.message.reply_text(f"❌ حدث خطأ أثناء تشغيل البوت، تأكد من صحة التوكن!\n\nالتفاصيل: {e}")
 
 # ----------------------------------------------------
-# 3. محرك البوت الفرعي المصنوع
+# 4. محرك البوت الفرعي
 # ----------------------------------------------------
 def setup_child_bot(app: Application, owner_id: int, allow_anonymous: bool):
 
@@ -196,7 +211,6 @@ def setup_child_bot(app: Application, owner_id: int, allow_anonymous: bool):
     async def child_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user = update.effective_user
 
-        # رد صاحب البوت على الرسائل
         if user.id == owner_id and update.message.reply_to_message:
             reply_text = update.message.reply_to_message.text or ""
             target_id = None
@@ -251,9 +265,11 @@ def setup_child_bot(app: Application, owner_id: int, allow_anonymous: bool):
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, child_message_handler))
 
 # ----------------------------------------------------
-# 4. تشغيل البوت الرئيسي
+# 5. تشغيل السيرفر والبوت معاً
 # ----------------------------------------------------
 def main():
+    threading.Thread(target=run_flask, daemon=True).start()
+
     app = Application.builder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
@@ -261,7 +277,7 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_buttons))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message_master))
 
-    print("🚀 تم تشغيل البوت الرئيسي بنجاح...")
+    print("🚀 تم تشغيل البوت وخادم الويب بنجاح...")
     app.run_polling()
 
 if __name__ == "__main__":
