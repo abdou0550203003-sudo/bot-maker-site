@@ -36,7 +36,7 @@ def run_flask():
 # ----------------------------------------------------
 # 1. إعداد المتغيرات وقواعد البيانات
 # ----------------------------------------------------
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8857425335:AAHC_0rpbxyu4D-W8R3bzg9EYWHpbtChuyc").strip()
 ADMIN_ID = int(os.getenv("ADMIN_ID", "7360406910"))
 
 users_db = set()
@@ -67,7 +67,11 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📢 إذاعة للمشاركين (محتكرة للادمن)", callback_data="admin_broadcast_all")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(admin_text, reply_markup=reply_markup, parse_mode="Markdown")
+    
+    if update.callback_query:
+        await update.callback_query.message.reply_text(admin_text, reply_markup=reply_markup, parse_mode="Markdown")
+    else:
+        await update.message.reply_text(admin_text, reply_markup=reply_markup, parse_mode="Markdown")
 
 # ----------------------------------------------------
 # 3. صانع البوتات الرئيسي
@@ -76,6 +80,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     users_db.add(user.id)
 
+    # إذا أرسل الأدمن الأمر /start admin تفتح له لوحة التحكم المباشرة
     if user.id == ADMIN_ID and context.args and context.args[0] == "admin":
         await admin_panel(update, context)
         return
@@ -88,7 +93,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "📌 **اختر نوع البوت الذي تريد إنشاءه الآن:**"
     )
 
-    # أزرار شفافة داخل الرسالة
     inline_keyboard = [
         [InlineKeyboardButton("🚀 اصنع بوتك بدون حقوق الآن", url="https://t.me/Contact_lbot")],
         [InlineKeyboardButton("1️⃣ صنع بوت مراسلة عادي (بلا ميزة الرسائل المجهولة)", callback_data="create_normal")],
@@ -96,7 +100,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup_inline = InlineKeyboardMarkup(inline_keyboard)
 
-    # أزرار سفلية دائمة (Reply Keyboard)
     reply_keyboard = [
         [KeyboardButton("🤖 إنشاء بوت جديد"), KeyboardButton("📢 إذاعة للمشاركين")]
     ]
@@ -151,7 +154,6 @@ async def handle_message_master(update: Update, context: ContextTypes.DEFAULT_TY
     text = update.message.text.strip()
     user_id = update.effective_user.id
 
-    # الأزرار السفلية
     if text == "🤖 إنشاء بوت جديد":
         await update.message.reply_text(
             "لإنشاء بوت جديد، قم بالتواصل مع صانع البوتات عبر الرابط الرسمي:\n👉 @Contact_lbot"
@@ -166,7 +168,6 @@ async def handle_message_master(update: Update, context: ContextTypes.DEFAULT_TY
             await update.message.reply_text("❌ عذراً، هذه الميزة محتكرة ومخصصة لمالك البوت الرئيسي فقط ولا يمكن استغلالها من البوتات الأخرى.")
         return
 
-    # إجراء الإذاعة خاص بالأدمن فقط
     if context.user_data.get('admin_action') == 'broadcast_all':
         if user_id == ADMIN_ID:
             context.user_data['admin_action'] = None
@@ -182,7 +183,6 @@ async def handle_message_master(update: Update, context: ContextTypes.DEFAULT_TY
             await update.message.reply_text("❌ غير مصرح لك بالتنفيذ.")
         return
 
-    # استقبال التوكن
     if ":" in text and len(text) > 20:
         bot_type = context.user_data.get('bot_type', 'create_normal')
         allow_anon = (bot_type == "create_anon")
@@ -321,7 +321,7 @@ async def main_async():
     app.add_handler(CallbackQueryHandler(handle_buttons))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message_master))
 
-    print("🚀 تم تشغيل البوت وخادم الويب بنجاح...")
+    print(f"🚀 Running Bot with Token prefix: {BOT_TOKEN[:10]}...")
 
     async with app:
         await app.start()
