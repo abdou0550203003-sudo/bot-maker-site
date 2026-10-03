@@ -1,6 +1,7 @@
 import os
 import logging
 import threading
+import asyncio
 from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -157,7 +158,7 @@ async def handle_message_master(update: Update, context: ContextTypes.DEFAULT_TY
             await update.message.reply_text(
                 f"🎉 **تم إنشاء وتفعيل بوتك بنجاح!**\n\n"
                 f"👤 **صاحب البوت (الأيدي):** `{user_id}`\n"
-                f"🕵️‍♂️ **خاصية الرسائل المجهولة:** {'مفعلة ✅' if allow_anon else 'معطلة ❌'}\n\n"
+                f"🕵️️‍♂️ **خاصية الرسائل المجهولة:** {'مفعلة ✅' if allow_anon else 'معطلة ❌'}\n\n"
                 f"يمكنك الآن مشاركة رابط بوتك للبدء في استقبال الرسائل!",
                 parse_mode="Markdown"
             )
@@ -267,9 +268,7 @@ def setup_child_bot(app: Application, owner_id: int, allow_anonymous: bool):
 # ----------------------------------------------------
 # 5. تشغيل السيرفر والبوت معاً
 # ----------------------------------------------------
-def main():
-    threading.Thread(target=run_flask, daemon=True).start()
-
+async def main_async():
     app = Application.builder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
@@ -278,7 +277,15 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message_master))
 
     print("🚀 تم تشغيل البوت وخادم الويب بنجاح...")
-    app.run_polling(drop_pending_updates=True)
+
+    async with app:
+        await app.start()
+        await app.updater.start_polling(drop_pending_updates=True)
+        await asyncio.Event().wait()
+
+def main():
+    threading.Thread(target=run_flask, daemon=True).start()
+    asyncio.run(main_async())
 
 if __name__ == "__main__":
     main()
