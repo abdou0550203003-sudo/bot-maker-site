@@ -37,7 +37,7 @@ def run_flask():
 # 1. إعداد المتغيرات وقواعد البيانات
 # ----------------------------------------------------
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID = int(os.getenv("ADMIN_ID", "894155326"))
+ADMIN_ID = int(os.getenv("ADMIN_ID", "7360406910"))
 
 users_db = set()
 created_bots = {}
@@ -311,7 +311,7 @@ def setup_child_bot(app: Application, owner_id: int, allow_anonymous: bool):
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, child_message_handler))
 
 # ----------------------------------------------------
-# 5. تشغيل السيرفر والبوت معاً
+# 5. تشغيل السيرفر
 # ----------------------------------------------------
 async def main_async():
     app = Application.builder().token(BOT_TOKEN).build()
@@ -326,7 +326,6 @@ async def main_async():
     async with app:
         await app.start()
         
-        # ضبط أوامر البوت بأمان أثناء العمل
         try:
             commands = [
                 BotCommand("start", "فتح القائمة الرئيسية"),
