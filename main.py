@@ -47,14 +47,6 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-# تعيين القائمة السريعة للزر الأيسر السفلي
-async def setup_bot_commands(application):
-    commands = [
-        BotCommand("start", "فتح القائمة الرئيسية"),
-        BotCommand("admin", "فتح لوحة التحكم الإدارية"),
-    ]
-    await application.bot.set_my_commands(commands)
-
 # ----------------------------------------------------
 # 2. لوحة تحكم المطوّر الرئيسي (ADMIN_ID فقط)
 # ----------------------------------------------------
@@ -104,7 +96,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup_inline = InlineKeyboardMarkup(inline_keyboard)
 
-    # أزرار سفلية دائمة (Reply Keyboard) مثل الصورة 1
+    # أزرار سفلية دائمة (Reply Keyboard)
     reply_keyboard = [
         [KeyboardButton("🤖 إنشاء بوت جديد"), KeyboardButton("📢 إذاعة للمشاركين")]
     ]
@@ -159,7 +151,7 @@ async def handle_message_master(update: Update, context: ContextTypes.DEFAULT_TY
     text = update.message.text.strip()
     user_id = update.effective_user.id
 
-    # الأزرار السفلية (Reply Keyboard Actions)
+    # الأزرار السفلية
     if text == "🤖 إنشاء بوت جديد":
         await update.message.reply_text(
             "لإنشاء بوت جديد، قم بالتواصل مع صانع البوتات عبر الرابط الرسمي:\n👉 @Contact_lbot"
@@ -240,7 +232,6 @@ def setup_child_bot(app: Application, owner_id: int, allow_anonymous: bool):
             "اختر طبيعة الرسالة التي تريد إرسالها لصاحب البوت:"
         )
 
-        # زر علوي شفاف وتنسيقات الأزرار
         keyboard = [
             [InlineKeyboardButton("🚀 اصنع بوتك بدون حقوق الآن", url="https://t.me/Contact_lbot")],
             [InlineKeyboardButton("💬 إرسال رسالة عادية", callback_data="send_normal")],
@@ -266,7 +257,6 @@ def setup_child_bot(app: Application, owner_id: int, allow_anonymous: bool):
     async def child_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user = update.effective_user
 
-        # رد صاحب البوت على الرسائل
         if user.id == owner_id and update.message.reply_to_message:
             reply_text = update.message.reply_to_message.text or update.message.reply_to_message.caption or ""
             target_id = None
@@ -326,9 +316,6 @@ def setup_child_bot(app: Application, owner_id: int, allow_anonymous: bool):
 async def main_async():
     app = Application.builder().token(BOT_TOKEN).build()
 
-    # تعيين القائمة بالأوامر السريعة
-    await setup_bot_commands(app)
-
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("admin", admin_panel))
     app.add_handler(CallbackQueryHandler(handle_buttons))
@@ -338,6 +325,17 @@ async def main_async():
 
     async with app:
         await app.start()
+        
+        # ضبط أوامر البوت بأمان أثناء العمل
+        try:
+            commands = [
+                BotCommand("start", "فتح القائمة الرئيسية"),
+                BotCommand("admin", "فتح لوحة التحكم الإدارية"),
+            ]
+            await app.bot.set_my_commands(commands)
+        except Exception as e:
+            print(f"Warning setting commands: {e}")
+
         await app.updater.start_polling(drop_pending_updates=True)
         await asyncio.Event().wait()
 
